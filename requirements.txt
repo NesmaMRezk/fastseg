@@ -1,4 +1,4 @@
-NesmaMRezk.gen-efficientnet-pytorch
+git+https://github.com/NesmaMRezk/gen-efficientnet-pytorch.git
 onnx==1.7.0
 onnxruntime==1.4.0
 Pillow==7.2.0
