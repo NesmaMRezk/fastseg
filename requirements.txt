@@ -1,4 +1,4 @@
-NesmaMRezk.geffnet==0.9.8
+NesmaMRezk.geffnet
 onnx==1.7.0
 onnxruntime==1.4.0
 Pillow==7.2.0
