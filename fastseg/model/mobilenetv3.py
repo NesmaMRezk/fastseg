@@ -45,6 +45,7 @@ class MobileNetV3_Large(nn.Module):
         self.block6 = net.blocks[6]
 
     def forward(self, x):
+        print("Hello Nesma")
         x = self.early(x) # 2x
         x = self.block0(x)
         s2 = x
