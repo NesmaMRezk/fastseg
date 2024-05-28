@@ -30,7 +30,7 @@ setup(
     packages=find_namespace_packages(include=["fastseg", "fastseg.*"]),
     include_package_data=True,
     install_requires=[
-        "NesmaMRezk.geffnet >= 0.9.8",
+        "NesmaMRezk.geffnet",
         "Pillow >= 7.0.0",
         "numpy >= 1.18.0",
         "torch >= 1.5.0",
