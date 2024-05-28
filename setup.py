@@ -30,7 +30,7 @@ setup(
     packages=find_namespace_packages(include=["fastseg", "fastseg.*"]),
     include_package_data=True,
     install_requires=[
-        "git+https://github.com/NesmaMRezk/gen-efficientnet-pytorch.git",
+        "NesmaMRezk.gen-efficientnet-pytorch",
         "Pillow >= 7.0.0",
         "numpy >= 1.18.0",
         "torch >= 1.5.0",
