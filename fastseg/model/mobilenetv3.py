@@ -59,9 +59,9 @@ class MobileNetV3_Large(nn.Module):
         return s2, s4, x
 
 
-class MobileNetV3_Small_NR(nn.Module):
+class MobileNetV3_Small(nn.Module):
     def __init__(self, trunk=tf_mobilenetv3_small_100, pretrained=False):
-        super(MobileNetV3_Small_NR, self).__init__()
+        super(MobileNetV3_Small, self).__init__()
         net = trunk(pretrained=pretrained,
                     norm_layer=nn.BatchNorm2d)
 
