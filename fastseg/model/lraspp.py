@@ -31,7 +31,7 @@ class LRASPP(nn.Module):
          
         # ASPP modules
         if self.use_aspp:
-             self.aspp_conv1 = nn.Sequential(
+            self.aspp_conv1 = nn.Sequential(
                 nn.Conv2d(in_channels, aspp_channels, kernel_size=1, bias=False),
                 nn.BatchNorm2d(aspp_channels),
                 nn.ReLU(inplace=True)
