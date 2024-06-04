@@ -19,7 +19,7 @@ class LRASPP(BaseSegmentation):
         Keyword arguments:
         num_classes -- number of output classes (e.g., 19 for Cityscapes)
         trunk -- the name of the trunk to use ('mobilenetv3_large', 'mobilenetv3_small')
-        use_aspp -- whether to use DeepLabV3+ style ASPP (True) or Lite R-ASPP (False)
+        use_aspp -- whether to use DeepLabV3+ style ASPP (True) or Lite R-ASPP (False)-
             (setting this to True may yield better results, at the cost of latency)
         num_filters -- the number of filters in the segmentation head
         """
@@ -74,8 +74,10 @@ class LRASPP(BaseSegmentation):
         self.conv_up3 = ConvBnRelu(num_filters + 32, num_filters, kernel_size=1)
         self.last = nn.Conv2d(num_filters, num_classes, kernel_size=1)
 
+
+
     def forward(self, x):
-        s2, s4, final = self.trunk(x)  # Skip s2 and s4
+        _, _, final = self.trunk(x)  # Skip s2 and s4
         
         if self.use_aspp:
             aspp1 = self.aspp_conv1(final)
@@ -83,7 +85,7 @@ class LRASPP(BaseSegmentation):
             aspp3 = self.aspp_conv3(final)
     
             aspp2 = F.avg_pool2d(aspp2, kernel_size=16, stride=16)  # Adjust stride and kernel size
-            aspp3 = F.avg_pool2d(aspp3, kernel_size=49, stride=49)  # Adjust stride and kernel size
+            aspp3 = F.avg_pool2d(aspp3, kernel_size=16, stride=16)  # Adjust stride and kernel size
             aspp_pool = F.adaptive_avg_pool2d(final, 1)
             aspp_pool = self.aspp_pool(aspp_pool)
     
@@ -92,8 +94,8 @@ class LRASPP(BaseSegmentation):
             aspp = self.aspp_conv1(final) * self.aspp_conv2(final)
         
         y = self.conv_up1(aspp)
-        y = self.conv_up2(torch.cat([y, self.convs4(s4)], 1))
-        y = self.conv_up3(torch.cat([y, self.convs2(s2)], 1))
+        y = self.conv_up2(y)
+        y = self.conv_up3(y)
         y = self.last(y)
         
         return y
