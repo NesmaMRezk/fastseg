@@ -11,8 +11,6 @@ import torch.nn.functional as F
 from .utils import get_trunk, ConvBnRelu
 from .base import BaseSegmentation
 
-import torch.nn as nn
-
 class LRASPP(BaseSegmentation):
     """Lite R-ASPP style segmentation network."""
     def __init__(self, num_classes, trunk, use_aspp=False, num_filters=128):
@@ -70,13 +68,12 @@ class LRASPP(BaseSegmentation):
             aspp_out_ch = num_filters
 
         self.convs2 = nn.Conv2d(s2_ch, 32, kernel_size=1, bias=False)
-        self.convs4 = nn.Conv2d(s4_ch, 64, kernel_size=1, stride=2, bias=False)
-
-        #self.conv_up1 = nn.Conv2d(aspp_out_ch, num_filters, kernel_size=1, stride=2)        self.conv_up2 = ConvBnRelu(num_filters + 64, num_filters, kernel_size=1)
+        self.convs4 = nn.Conv2d(s4_ch, 64, kernel_size=1, bias=False)
+        self.conv_up1 = nn.Conv2d(aspp_out_ch, num_filters, kernel_size=1)
+        self.conv_up2 = ConvBnRelu(num_filters + 64, num_filters, kernel_size=1)
         self.conv_up3 = ConvBnRelu(num_filters + 32, num_filters, kernel_size=1)
         self.last = nn.Conv2d(num_filters, num_classes, kernel_size=1)
-        self.conv_up1 = nn.Conv2d(aspp_out_ch, num_filters, kernel_size=1, stride=1)  # Adjust stride to 1
-        self.conv_up2 = ConvBnRelu(num_filters + 64, num_filters, kernel_size=1, stride=1)  # Adjust stride to 1
+
     def forward(self, x):
         s2, s4, final = self.trunk(x)
         if self.use_aspp:
@@ -84,22 +81,28 @@ class LRASPP(BaseSegmentation):
                 self.aspp_conv1(final),
                 self.aspp_conv2(final),
                 self.aspp_conv3(final),
-                self.aspp_pool(final).repeat(1, 1, final.shape[2], final.shape[3])
+                F.interpolate(self.aspp_pool(final), size=final.shape[2:]),
             ], 1)
         else:
-            aspp = self.aspp_conv1(final) * self.aspp_conv2(final).repeat(1, 1, final.shape[2], final.shape[3])
+            aspp = self.aspp_conv1(final) * F.interpolate(
+                self.aspp_conv2(final),
+                final.shape[2:],
+                mode='bilinear',
+                align_corners=True
+            )
         y = self.conv_up1(aspp)
-        y = F.conv_transpose2d(y, self.convs4.weight, stride=2)  # Upsampling with ConvTranspose2d
-        print((self.convs4(s4)).size)
-        print(y.size)
+        y = F.interpolate(y, size=s4.shape[2:], mode='bilinear', align_corners=False)
+
         y = torch.cat([y, self.convs4(s4)], 1)
         y = self.conv_up2(y)
-        y = F.conv_transpose2d(y, self.convs2.weight, stride=2)  # Upsampling with ConvTranspose2d
+        y = F.interpolate(y, size=s2.shape[2:], mode='bilinear', align_corners=False)
 
         y = torch.cat([y, self.convs2(s2)], 1)
         y = self.conv_up3(y)
         y = self.last(y)
+        y = F.interpolate(y, size=x.shape[2:], mode='bilinear', align_corners=False)
         return y
+
 
 class MobileV3Large(LRASPP):
     """MobileNetV3-Large segmentation network."""
