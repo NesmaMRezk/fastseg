@@ -76,28 +76,30 @@ class LRASPP(BaseSegmentation):
 
 
 
-    def forward(self, x):
+      def forward(self, x):
         _, _, final = self.trunk(x)  # Skip s2 and s4
-        
+    
         if self.use_aspp:
             aspp1 = self.aspp_conv1(final)
             aspp2 = self.aspp_conv2(final)
             aspp3 = self.aspp_conv3(final)
     
-            aspp2 = F.avg_pool2d(aspp2, kernel_size=16, stride=16)  # Adjust stride and kernel size
-            aspp3 = F.avg_pool2d(aspp3, kernel_size=16, stride=16)  # Adjust stride and kernel size
-            aspp_pool = F.adaptive_avg_pool2d(final, 1)
-            aspp_pool = self.aspp_pool(aspp_pool)
+            # Calculate padding to maintain the same spatial size
+            padding_h = (aspp2.shape[2] - 1) * 16 + aspp2.shape[2] - final.shape[2]
+            padding_w = (aspp2.shape[3] - 1) * 20 + aspp2.shape[3] - final.shape[3]
+            
+            # Apply padding to aspp2 and aspp3
+            aspp2 = F.avg_pool2d(aspp2, kernel_size=(16, 20), stride=(16, 20), padding=(padding_h // 2, padding_w // 2))
+            aspp3 = F.avg_pool2d(aspp3, kernel_size=(16, 20), stride=(16, 20), padding=(padding_h // 2, padding_w // 2))
+            
+            # No need to change aspp1 and aspp_pool
     
-            aspp = torch.cat([aspp1, aspp2, aspp3, aspp_pool], 1)
+            aspp = torch.cat([aspp1, aspp2, aspp3], 1)
         else:
             aspp = self.aspp_conv1(final) * self.aspp_conv2(final)
-        
-        y = self.conv_up1(aspp)
-        y = self.conv_up2(y)
-        y = self.conv_up3(y)
-        y = self.last(y)
-        
+    
+        y = aspp
+    
         return y
 
 
