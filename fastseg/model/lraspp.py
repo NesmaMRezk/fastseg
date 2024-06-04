@@ -44,20 +44,20 @@ class LRASPP(BaseSegmentation):
             self.aspp_conv3 = nn.Sequential(
                 nn.Conv2d(high_level_ch, num_filters, 1, bias=False),
                 nn.Conv2d(num_filters, num_filters, 3, dilation=36, padding=36),
-                nn.BatchNorm2d(num_filters),
+          #      nn.BatchNorm2d(num_filters),
                 nn.ReLU(inplace=True),
             )
             self.aspp_pool = nn.Sequential(
                 nn.AdaptiveAvgPool2d(1),
                 nn.Conv2d(high_level_ch, num_filters, 1, bias=False),
-                nn.BatchNorm2d(num_filters),
+           #     nn.BatchNorm2d(num_filters),
                 nn.ReLU(inplace=True),
             )
             aspp_out_ch = num_filters * 4
         else:
             self.aspp_conv1 = nn.Sequential(
                 nn.Conv2d(high_level_ch, num_filters, 1, bias=False),
-                nn.BatchNorm2d(num_filters),
+            #    nn.BatchNorm2d(num_filters),
                 nn.ReLU(inplace=True),
             )
             self.aspp_conv2 = nn.Sequential(
