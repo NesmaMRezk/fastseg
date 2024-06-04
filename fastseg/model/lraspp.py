@@ -32,32 +32,32 @@ class LRASPP(BaseSegmentation):
         if self.use_aspp:
             self.aspp_conv1 = nn.Sequential(
                 nn.Conv2d(high_level_ch, num_filters, 1, bias=False),
-             #   nn.BatchNorm2d(num_filters),
+                nn.BatchNorm2d(num_filters),
                 nn.ReLU(inplace=True),
             )
             self.aspp_conv2 = nn.Sequential(
                 nn.Conv2d(high_level_ch, num_filters, 1, bias=False),
                 nn.Conv2d(num_filters, num_filters, 3, dilation=12, padding=12),
-              #  nn.BatchNorm2d(num_filters),
+                nn.BatchNorm2d(num_filters),
                 nn.ReLU(inplace=True),
             )
             self.aspp_conv3 = nn.Sequential(
                 nn.Conv2d(high_level_ch, num_filters, 1, bias=False),
                 nn.Conv2d(num_filters, num_filters, 3, dilation=36, padding=36),
-          #      nn.BatchNorm2d(num_filters),
+                nn.BatchNorm2d(num_filters),
                 nn.ReLU(inplace=True),
             )
             self.aspp_pool = nn.Sequential(
                 nn.AdaptiveAvgPool2d(1),
                 nn.Conv2d(high_level_ch, num_filters, 1, bias=False),
-           #     nn.BatchNorm2d(num_filters),
+                nn.BatchNorm2d(num_filters),
                 nn.ReLU(inplace=True),
             )
             aspp_out_ch = num_filters * 4
         else:
             self.aspp_conv1 = nn.Sequential(
                 nn.Conv2d(high_level_ch, num_filters, 1, bias=False),
-            #    nn.BatchNorm2d(num_filters),
+                nn.BatchNorm2d(num_filters),
                 nn.ReLU(inplace=True),
             )
             self.aspp_conv2 = nn.Sequential(
@@ -81,7 +81,7 @@ class LRASPP(BaseSegmentation):
                 self.aspp_conv1(final),
                 self.aspp_conv2(final),
                 self.aspp_conv3(final),
-                F.interpolate(self.aspp_pool(final), size=final.shape[2:]),
+              #  F.interpolate(self.aspp_pool(final), size=final.shape[2:]),
             ], 1)
         else:
             aspp = self.aspp_conv1(final) * F.interpolate(
@@ -91,16 +91,16 @@ class LRASPP(BaseSegmentation):
                 align_corners=True
             )
         y = self.conv_up1(aspp)
-        y = F.interpolate(y, size=s4.shape[2:], mode='bilinear', align_corners=False)
+        #y = F.interpolate(y, size=s4.shape[2:], mode='bilinear', align_corners=False)
 
         y = torch.cat([y, self.convs4(s4)], 1)
         y = self.conv_up2(y)
-        y = F.interpolate(y, size=s2.shape[2:], mode='bilinear', align_corners=False)
+#        y = F.interpolate(y, size=s2.shape[2:], mode='bilinear', align_corners=False)
 
         y = torch.cat([y, self.convs2(s2)], 1)
         y = self.conv_up3(y)
         y = self.last(y)
-        y = F.interpolate(y, size=x.shape[2:], mode='bilinear', align_corners=False)
+ #       y = F.interpolate(y, size=x.shape[2:], mode='bilinear', align_corners=False)
         return y
 
 
