@@ -91,7 +91,7 @@ class LRASPP(BaseSegmentation):
                 align_corners=True
             )
     
-        y = self.conv_up1(aspp)
+        y = aspp
       #  y = F.interpolate(y, size=x.shape[2:], mode='bilinear', align_corners=False)
       #  y = self.last(y)
     
