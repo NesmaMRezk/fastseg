@@ -32,13 +32,13 @@ class LRASPP(BaseSegmentation):
         if self.use_aspp:
             self.aspp_conv1 = nn.Sequential(
                 nn.Conv2d(high_level_ch, num_filters, 1, bias=False),
-                nn.BatchNorm2d(num_filters),
+             #   nn.BatchNorm2d(num_filters),
                 nn.ReLU(inplace=True),
             )
             self.aspp_conv2 = nn.Sequential(
                 nn.Conv2d(high_level_ch, num_filters, 1, bias=False),
                 nn.Conv2d(num_filters, num_filters, 3, dilation=12, padding=12),
-                nn.BatchNorm2d(num_filters),
+              #  nn.BatchNorm2d(num_filters),
                 nn.ReLU(inplace=True),
             )
             self.aspp_conv3 = nn.Sequential(
