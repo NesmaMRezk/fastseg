@@ -75,26 +75,27 @@ class LRASPP(BaseSegmentation):
         self.last = nn.Conv2d(num_filters, num_classes, kernel_size=1)
 
     def forward(self, x):
-        s2,s4 ,final = self.trunk(x)  # Skip s2 and s4
-    
+        s2, s4, final = self.trunk(x)  # Skip s2 and s4
+        
         if self.use_aspp:
-            aspp = torch.cat([
-                self.aspp_conv1(final),
-                self.aspp_conv2(final),
-                self.aspp_conv3(final),
-            ], 1)
+            aspp1 = self.aspp_conv1(final)
+            aspp2 = self.aspp_conv2(final)
+            aspp3 = self.aspp_conv3(final)
+    
+            aspp2 = F.avg_pool2d(aspp2, kernel_size=16, stride=16)  # Adjust stride and kernel size
+            aspp3 = F.avg_pool2d(aspp3, kernel_size=49, stride=49)  # Adjust stride and kernel size
+            aspp_pool = F.adaptive_avg_pool2d(final, 1)
+            aspp_pool = self.aspp_pool(aspp_pool)
+    
+            aspp = torch.cat([aspp1, aspp2, aspp3, aspp_pool], 1)
         else:
-            aspp = self.aspp_conv1(final) * F.interpolate(
-                self.aspp_conv2(final),
-                final.shape[2:],
-                mode='bilinear',
-                align_corners=True
-            )
-    
-        y = aspp
-      #  y = F.interpolate(y, size=x.shape[2:], mode='bilinear', align_corners=False)
-      #  y = self.last(y)
-    
+            aspp = self.aspp_conv1(final) * self.aspp_conv2(final)
+        
+        y = self.conv_up1(aspp)
+        y = self.conv_up2(torch.cat([y, self.convs4(s4)], 1))
+        y = self.conv_up3(torch.cat([y, self.convs2(s2)], 1))
+        y = self.last(y)
+        
         return y
 
 
