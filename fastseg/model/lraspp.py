@@ -70,12 +70,13 @@ class LRASPP(BaseSegmentation):
             aspp_out_ch = num_filters
 
         self.convs2 = nn.Conv2d(s2_ch, 32, kernel_size=1, bias=False)
-        self.convs4 = nn.Conv2d(s4_ch, 64, kernel_size=1, bias=False)
-        self.conv_up1 = nn.Conv2d(aspp_out_ch, num_filters, kernel_size=1)
-        self.conv_up2 = ConvBnRelu(num_filters + 64, num_filters, kernel_size=1)
+        self.convs4 = nn.Conv2d(s4_ch, 64, kernel_size=1, stride=2, bias=False)
+
+        #self.conv_up1 = nn.Conv2d(aspp_out_ch, num_filters, kernel_size=1, stride=2)        self.conv_up2 = ConvBnRelu(num_filters + 64, num_filters, kernel_size=1)
         self.conv_up3 = ConvBnRelu(num_filters + 32, num_filters, kernel_size=1)
         self.last = nn.Conv2d(num_filters, num_classes, kernel_size=1)
-
+        self.conv_up1 = nn.Conv2d(aspp_out_ch, num_filters, kernel_size=1, stride=1)  # Adjust stride to 1
+        self.conv_up2 = ConvBnRelu(num_filters + 64, num_filters, kernel_size=1, stride=1)  # Adjust stride to 1
     def forward(self, x):
         s2, s4, final = self.trunk(x)
         if self.use_aspp:
@@ -89,7 +90,8 @@ class LRASPP(BaseSegmentation):
             aspp = self.aspp_conv1(final) * self.aspp_conv2(final).repeat(1, 1, final.shape[2], final.shape[3])
         y = self.conv_up1(aspp)
         y = F.conv_transpose2d(y, self.convs4.weight, stride=2)  # Upsampling with ConvTranspose2d
-
+        print((self.convs4(s4)).size)
+        print(y.size)
         y = torch.cat([y, self.convs4(s4)], 1)
         y = self.conv_up2(y)
         y = F.conv_transpose2d(y, self.convs2.weight, stride=2)  # Upsampling with ConvTranspose2d
