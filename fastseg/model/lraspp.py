@@ -75,27 +75,27 @@ class LRASPP(BaseSegmentation):
         self.last = nn.Conv2d(num_filters, num_classes, kernel_size=1)
 
     def forward(self, x):
-    _, _, final = self.trunk(x)  # Skip s2 and s4
-
-    if self.use_aspp:
-        aspp = torch.cat([
-            self.aspp_conv1(final),
-            self.aspp_conv2(final),
-            self.aspp_conv3(final),
-        ], 1)
-    else:
-        aspp = self.aspp_conv1(final) * F.interpolate(
-            self.aspp_conv2(final),
-            final.shape[2:],
-            mode='bilinear',
-            align_corners=True
-        )
-
-    y = self.conv_up1(aspp)
-  #  y = F.interpolate(y, size=x.shape[2:], mode='bilinear', align_corners=False)
-  #  y = self.last(y)
-
-    return y
+        s2,s4 final = self.trunk(x)  # Skip s2 and s4
+    
+        if self.use_aspp:
+            aspp = torch.cat([
+                self.aspp_conv1(final),
+                self.aspp_conv2(final),
+                self.aspp_conv3(final),
+            ], 1)
+        else:
+            aspp = self.aspp_conv1(final) * F.interpolate(
+                self.aspp_conv2(final),
+                final.shape[2:],
+                mode='bilinear',
+                align_corners=True
+            )
+    
+        y = self.conv_up1(aspp)
+      #  y = F.interpolate(y, size=x.shape[2:], mode='bilinear', align_corners=False)
+      #  y = self.last(y)
+    
+        return y
 
 
 class MobileV3Large(LRASPP):
