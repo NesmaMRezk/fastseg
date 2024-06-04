@@ -81,7 +81,7 @@ class LRASPP(BaseSegmentation):
                 self.aspp_conv1(final),
                 self.aspp_conv2(final),
                 self.aspp_conv3(final),
-                F.interpolate(self.aspp_pool(final), size=final.shape[2:]),
+     #           F.interpolate(self.aspp_pool(final), size=final.shape[2:]),
             ], 1)
         else:
             aspp = self.aspp_conv1(final) * F.interpolate(
