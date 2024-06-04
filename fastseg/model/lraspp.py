@@ -75,7 +75,7 @@ class LRASPP(BaseSegmentation):
         self.last = nn.Conv2d(num_filters, num_classes, kernel_size=1)
 
     def forward(self, x):
-        s2,s4 final = self.trunk(x)  # Skip s2 and s4
+        s2,s4 ,final = self.trunk(x)  # Skip s2 and s4
     
         if self.use_aspp:
             aspp = torch.cat([
