@@ -80,7 +80,7 @@ class LRASPP(BaseSegmentation):
         self.upsample3 = nn.ConvTranspose2d(num_filters, num_filters, kernel_size=3, stride=2, padding=1, output_padding=1)
 
     def forward(self, x):
-        s2, s4, final = self.trunk(x), self.trunk(x), self.trunk(x)  # Simulating trunk outputs
+        s2, s4, final = self.trunk(x)
         if self.use_aspp:
             aspp_features = [
                 self.aspp_conv1(final),
