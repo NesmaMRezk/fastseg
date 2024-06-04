@@ -76,7 +76,7 @@ class LRASPP(BaseSegmentation):
 
 
 
-      def forward(self, x):
+    def forward(self, x):
         _, _, final = self.trunk(x)  # Skip s2 and s4
     
         if self.use_aspp:
