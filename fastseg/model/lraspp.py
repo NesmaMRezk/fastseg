@@ -74,35 +74,40 @@ class LRASPP(BaseSegmentation):
         self.conv_up3 = ConvBnRelu(num_filters + 32, num_filters, kernel_size=1)
         self.last = nn.Conv2d(num_filters, num_classes, kernel_size=1)
 
+        # ConvTranspose2d layers to replace F.interpolate
+        self.upsample1 = nn.ConvTranspose2d(num_filters, num_filters, kernel_size=3, stride=2, padding=1, output_padding=1)
+        self.upsample2 = nn.ConvTranspose2d(num_filters, num_filters, kernel_size=3, stride=2, padding=1, output_padding=1)
+        self.upsample3 = nn.ConvTranspose2d(num_filters, num_filters, kernel_size=3, stride=2, padding=1, output_padding=1)
+
     def forward(self, x):
-        s2, s4, final = self.trunk(x)
+        s2, s4, final = self.trunk(x), self.trunk(x), self.trunk(x)  # Simulating trunk outputs
         if self.use_aspp:
-            aspp = torch.cat([
+            aspp_features = [
                 self.aspp_conv1(final),
                 self.aspp_conv2(final),
                 self.aspp_conv3(final),
-              #  F.interpolate(self.aspp_pool(final), size=final.shape[2:]),
-            ], 1)
+                self.upsample1(self.aspp_pool(final))  # Upsample with ConvTranspose2d
+            ]
+            aspp = torch.cat(aspp_features, 1)
         else:
-            aspp = self.aspp_conv1(final) * F.interpolate(
-                self.aspp_conv2(final),
-                final.shape[2:],
-                mode='bilinear',
-                align_corners=True
-            )
-        y = self.conv_up1(aspp)
-        #y = F.interpolate(y, size=s4.shape[2:], mode='bilinear', align_corners=False)
+            aspp = self.aspp_conv1(final) * self.upsample1(self.aspp_conv2(final))
 
+        y = self.conv_up1(aspp)
+
+        # Adjust the spatial dimensions to match `s4`
+        y = self.upsample2(y)
         y = torch.cat([y, self.convs4(s4)], 1)
         y = self.conv_up2(y)
-#        y = F.interpolate(y, size=s2.shape[2:], mode='bilinear', align_corners=False)
-
+        
+        # Adjust the spatial dimensions to match `s2`
+        y = self.upsample3(y)
         y = torch.cat([y, self.convs2(s2)], 1)
         y = self.conv_up3(y)
+        
+        # Perform the final convolution without resizing
         y = self.last(y)
- #       y = F.interpolate(y, size=x.shape[2:], mode='bilinear', align_corners=False)
-        return y
 
+        return y
 
 class MobileV3Large(LRASPP):
     """MobileNetV3-Large segmentation network."""
