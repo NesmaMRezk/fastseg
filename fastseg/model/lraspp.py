@@ -9,13 +9,14 @@ def adjust_size(y, target_size):
     _, _, h, w = y.size()
     target_h, target_w = target_size
 
-    # Padding logic
-    pad_h = (target_h - h).clamp(min=0)
-    pad_w = (target_w - w).clamp(min=0)
+    # Calculate the padding needed
+    pad_h = max(target_h - h, 0)
+    pad_w = max(target_w - w, 0)
 
+    # Apply padding if needed
     y = F.pad(y, (0, pad_w, 0, pad_h))
 
-    # Cropping logic
+    # Crop to the target size
     y = y[:, :, :target_h, :target_w]
 
     return y
