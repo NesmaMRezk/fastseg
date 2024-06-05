@@ -9,17 +9,14 @@ def adjust_size(y, target_size):
     _, _, h, w = y.size()
     target_h, target_w = target_size
 
-    if h < target_h:
-        pad_h = target_h - h
-        y = F.pad(y, (0, 0, 0, pad_h))
-    elif h > target_h:
-        y = y[:, :, :target_h, :]
+    # Padding logic
+    pad_h = (target_h - h).clamp(min=0)
+    pad_w = (target_w - w).clamp(min=0)
 
-    if w < target_w:
-        pad_w = target_w - w
-        y = F.pad(y, (0, pad_w, 0, 0))
-    elif w > target_w:
-        y = y[:, :, :, :target_w]
+    y = F.pad(y, (0, pad_w, 0, pad_h))
+
+    # Cropping logic
+    y = y[:, :, :target_h, :target_w]
 
     return y
     
@@ -111,16 +108,15 @@ class LRASPP(BaseSegmentation):
                 mode='bilinear',
                 align_corners=True
             )
-        y = self.conv_up1(aspp, output_size=s4.shape[2:])
+        y = self.conv_up1(aspp)
         y = adjust_size(y, s4.shape[2:])
         y = torch.cat([y, self.convs4(s4)], 1)
-        y = self.conv_up2(y, output_size=s2.shape[2:])
+        y = self.conv_up2(y)
         y = adjust_size(y, s2.shape[2:])
         y = torch.cat([y, self.convs2(s2)], 1)
-        y = self.conv_up3(y, output_size=x.shape[2:])
+        y = self.conv_up3(y)
         y = adjust_size(y, x.shape[2:])
         y = self.last(y)
-        
         return y
 
 
