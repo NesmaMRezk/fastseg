@@ -100,17 +100,22 @@ class LRASPP(BaseSegmentation):
                 self.aspp_conv1(final),
                 self.aspp_conv2(final),
                 self.aspp_conv3(final),
-                self.aspp_pool(final),
+                self.aspp_pool(final).expand(-1, -1, final.size(2), final.size(3)),
             ], 1)
         else:
-            aspp = self.aspp_conv1(final) * self.aspp_conv2(final)
+            aspp = self.aspp_conv1(final) * F.interpolate(
+                self.aspp_conv2(final),
+                final.shape[2:],
+                mode='bilinear',
+                align_corners=True
+            )
     
         # Pad the tensors to adjust sizes
-        y = self.conv_up1(aspp)
-        y = torch.cat([y, self.convs4(F.pad(s4, (0, 1, 0, 1)))], 1)  # Add 'VALID' padding for Caffe
-        y = self.conv_up2(y)
-        y = torch.cat([y, self.convs2(F.pad(s2, (0, 1, 0, 1)))], 1)  # Add 'VALID' padding for Caffe
-        y = self.conv_up3(y)
+        y = self.conv_up1(aspp, output_size=s4.shape[2:])
+        y = torch.cat([y, self.convs4(s4)], 1)
+        y = self.conv_up2(y, output_size=s2.shape[2:])
+        y = torch.cat([y, self.convs2(s2)], 1)
+        y = self.conv_up3(y, output_size=x.shape[2:])
         y = self.last(y)
         return y
 
