@@ -92,7 +92,7 @@ class LRASPP(BaseSegmentation):
         self.conv_up2 = CustomUpsampleLayer(num_filters + 64, num_filters)
         self.conv_up3 = CustomUpsampleLayer(num_filters + 32, num_filters)
         self.last = nn.Conv2d(num_filters, num_classes, kernel_size=1)
-
+   
     def forward(self, x):
         s2, s4, final = self.trunk(x)
         if self.use_aspp:
@@ -100,25 +100,20 @@ class LRASPP(BaseSegmentation):
                 self.aspp_conv1(final),
                 self.aspp_conv2(final),
                 self.aspp_conv3(final),
-                self.aspp_pool(final).expand(-1, -1, final.size(2), final.size(3)),
+                self.aspp_pool(final),
             ], 1)
         else:
-            aspp = self.aspp_conv1(final) * F.interpolate(
-                self.aspp_conv2(final),
-                final.shape[2:],
-                mode='bilinear',
-                align_corners=True
-            )
+            aspp = self.aspp_conv1(final) * self.aspp_conv2(final)
+    
+        # Pad the tensors to adjust sizes
         y = self.conv_up1(aspp)
-        y = adjust_size(y, s4.shape[2:])
-        y = torch.cat([y, self.convs4(s4)], 1)
+        y = torch.cat([y, self.convs4(F.pad(s4, (0, 1, 0, 1)))], 1)  # Add 'VALID' padding for Caffe
         y = self.conv_up2(y)
-        y = adjust_size(y, s2.shape[2:])
-        y = torch.cat([y, self.convs2(s2)], 1)
+        y = torch.cat([y, self.convs2(F.pad(s2, (0, 1, 0, 1)))], 1)  # Add 'VALID' padding for Caffe
         y = self.conv_up3(y)
-        y = adjust_size(y, x.shape[2:])
         y = self.last(y)
         return y
+
 
 
 class MobileV3Large(LRASPP):
