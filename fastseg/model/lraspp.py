@@ -1,15 +1,17 @@
-"""Lite Reduced Atrous Spatial Pyramid Pooling
-
-Architecture introduced in the MobileNetV3 (2019) paper, as an
-efficient semantic segmentation head.
-"""
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from .utils import get_trunk, ConvBnRelu
 from .base import BaseSegmentation
+
+class CustomUpsampleLayer(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size=3, stride=2, padding=1, output_padding=1):
+        super(CustomUpsampleLayer, self).__init__()
+        self.upconv = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=padding, output_padding=output_padding)
+    
+    def forward(self, x):
+        return self.upconv(x)
 
 class LRASPP(BaseSegmentation):
     """Lite R-ASPP style segmentation network."""
@@ -19,7 +21,7 @@ class LRASPP(BaseSegmentation):
         Keyword arguments:
         num_classes -- number of output classes (e.g., 19 for Cityscapes)
         trunk -- the name of the trunk to use ('mobilenetv3_large', 'mobilenetv3_small')
-        use_aspp -- whether to use DeepLabV3+ style ASPP (True) or Lite R-ASPP (False)-
+        use_aspp -- whether to use DeepLabV3+ style ASPP (True) or Lite R-ASPP (False)
             (setting this to True may yield better results, at the cost of latency)
         num_filters -- the number of filters in the segmentation head
         """
@@ -69,37 +71,34 @@ class LRASPP(BaseSegmentation):
 
         self.convs2 = nn.Conv2d(s2_ch, 32, kernel_size=1, bias=False)
         self.convs4 = nn.Conv2d(s4_ch, 64, kernel_size=1, bias=False)
-        self.conv_up1 = nn.Conv2d(aspp_out_ch, num_filters, kernel_size=1)
-        self.conv_up2 = ConvBnRelu(num_filters + 64, num_filters, kernel_size=1)
-        self.conv_up3 = ConvBnRelu(num_filters + 32, num_filters, kernel_size=1)
+        self.conv_up1 = CustomUpsampleLayer(aspp_out_ch, num_filters)
+        self.conv_up2 = CustomUpsampleLayer(num_filters + 64, num_filters)
+        self.conv_up3 = CustomUpsampleLayer(num_filters + 32, num_filters)
         self.last = nn.Conv2d(num_filters, num_classes, kernel_size=1)
 
-
-
     def forward(self, x):
-        _, _, final = self.trunk(x)  # Skip s2 and s4
-    
+        s2, s4, final = self.trunk(x)
         if self.use_aspp:
-            aspp1 = self.aspp_conv1(final)
-            aspp2 = self.aspp_conv2(final)
-            aspp3 = self.aspp_conv3(final)
-    
-            # Calculate padding to maintain the same spatial size
-            padding_h = (aspp2.shape[2] - 1) * 16 + aspp2.shape[2] - final.shape[2]
-            padding_w = (aspp2.shape[3] - 1) * 20 + aspp2.shape[3] - final.shape[3]
-            
-            # Apply padding to aspp2 and aspp3
-            aspp2 = F.avg_pool2d(aspp2, kernel_size=(16, 20), stride=(16, 20), padding=(padding_h // 2, padding_w // 2))
-            aspp3 = F.avg_pool2d(aspp3, kernel_size=(16, 20), stride=(16, 20), padding=(padding_h // 2, padding_w // 2))
-            
-            # No need to change aspp1 and aspp_pool
-    
-            aspp = torch.cat([aspp1, aspp2, aspp3], 1)
+            aspp = torch.cat([
+                self.aspp_conv1(final),
+                self.aspp_conv2(final),
+                self.aspp_conv3(final),
+                self.aspp_pool(final).expand(-1, -1, final.size(2), final.size(3)),
+            ], 1)
         else:
-            aspp = self.aspp_conv1(final) * self.aspp_conv2(final)
-    
-        y = aspp
-    
+            aspp = self.aspp_conv1(final) * F.interpolate(
+                self.aspp_conv2(final),
+                final.shape[2:],
+                mode='bilinear',
+                align_corners=True
+            )
+        y = self.conv_up1(aspp)
+        y = torch.cat([y, self.convs4(s4)], 1)
+        y = self.conv_up2(y)
+        y = torch.cat([y, self.convs2(s2)], 1)
+        y = self.conv_up3(y)
+        y = self.last(y)
+        
         return y
 
 
