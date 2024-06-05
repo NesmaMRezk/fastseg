@@ -5,13 +5,14 @@ import torch.nn.functional as F
 from .utils import get_trunk, ConvBnRelu
 from .base import BaseSegmentation
 
+# CustomUpsampleLayer definition
 class CustomUpsampleLayer(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size=3, stride=2, padding=1, output_padding=1):
+    def __init__(self, in_channels, out_channels):
         super(CustomUpsampleLayer, self).__init__()
-        self.upconv = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=padding, output_padding=output_padding)
+        self.upconv = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=3, stride=2, padding=1, output_padding=1)
     
-    def forward(self, x):
-        return self.upconv(x)
+    def forward(self, x, output_size=None):
+        return self.upconv(x, output_size=output_size)
 
 class LRASPP(BaseSegmentation):
     """Lite R-ASPP style segmentation network."""
@@ -92,11 +93,11 @@ class LRASPP(BaseSegmentation):
                 mode='bilinear',
                 align_corners=True
             )
-        y = self.conv_up1(aspp)
+        y = self.conv_up1(aspp, output_size=s4.shape[2:])
         y = torch.cat([y, self.convs4(s4)], 1)
-        y = self.conv_up2(y)
+        y = self.conv_up2(y, output_size=s2.shape[2:])
         y = torch.cat([y, self.convs2(s2)], 1)
-        y = self.conv_up3(y)
+        y = self.conv_up3(y, output_size=x.shape[2:])
         y = self.last(y)
         
         return y
