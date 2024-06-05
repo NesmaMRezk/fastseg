@@ -104,8 +104,17 @@ class LRASPP(BaseSegmentation):
         else:
             aspp = self.aspp_conv1(final) * self.aspp_conv2(final)
 
+        # Perform operations to ensure the output size matches the input size
+        # (No interpolation needed)
+
+        # Apply the segmentation head layers
         y = self.conv_up1(aspp)
+        y = self.conv_up2(y)
+        y = self.conv_up3(y)
+        y = self.last(y)
+        
         return y
+
 
 class LRASPP_no_interpolate(BaseSegmentation):
     """Lite R-ASPP style segmentation network."""
