@@ -30,7 +30,7 @@ class CustomUpsampleLayer(nn.Module):
     def forward(self, x, output_size=None):
         return self.upconv(x, output_size=output_size)
 import torch.nn.functional as F
-class LRASPP(BaseSegmentation):
+class LRASPP_orig(BaseSegmentation):
     """Lite R-ASPP style segmentation network."""
     def __init__(self, num_classes, trunk, use_aspp=False, num_filters=128):
         """Initialize a new segmentation model.
@@ -154,6 +154,91 @@ class LRASPP_no_interpolate2(BaseSegmentation):
             self.aspp_conv3 = nn.Sequential(
                 nn.Conv2d(high_level_ch, num_filters, 1, bias=False),
                 nn.Conv2d(num_filters, num_filters, 3, dilation=36, padding=36),
+                nn.BatchNorm2d(num_filters),
+                nn.ReLU(inplace=True),
+            )
+            self.aspp_pool = nn.Sequential(
+                nn.AdaptiveAvgPool2d(1),
+                nn.Conv2d(high_level_ch, num_filters, 1, bias=False),
+                nn.BatchNorm2d(num_filters),
+                nn.ReLU(inplace=True),
+            )
+            aspp_out_ch = num_filters * 4
+        else:
+            self.aspp_conv1 = nn.Sequential(
+                nn.Conv2d(high_level_ch, num_filters, 1, bias=False),
+                nn.BatchNorm2d(num_filters),
+                nn.ReLU(inplace=True),
+            )
+            self.aspp_conv2 = nn.Sequential(
+                nn.AvgPool2d(kernel_size=(49, 49), stride=(16, 20)),
+                nn.Conv2d(high_level_ch, num_filters, 1, bias=False),
+                nn.Sigmoid(),
+            )
+            aspp_out_ch = num_filters
+
+        self.conv_up1 = nn.Conv2d(aspp_out_ch, num_filters, kernel_size=1)
+        self.conv_up2 = ConvBnRelu(num_filters, num_filters, kernel_size=1)
+        self.conv_up3 = ConvBnRelu(num_filters, num_filters, kernel_size=1)
+        self.last = nn.Conv2d(num_filters, num_classes, kernel_size=1)
+
+    def forward(self, x):
+        _, _, final = self.trunk(x)
+        if self.use_aspp:
+            aspp = torch.cat([
+                self.aspp_conv1(final),
+                self.aspp_conv2(final),
+                self.aspp_conv3(final),
+                self.aspp_pool(final).expand(-1, -1, final.size(2), final.size(3)),
+            ], 1)
+        else:
+            aspp = self.aspp_conv1(final) * self.aspp_conv2(final)
+
+        # Perform operations to ensure the output size matches the input size
+        # (No interpolation needed)
+
+        # Apply the segmentation head layers
+        y = self.conv_up1(aspp)
+        y = self.conv_up2(y)
+        y = self.conv_up3(y)
+        y = self.last(y)
+        
+        return y
+
+
+class LRASPP(BaseSegmentation):
+    """Lite R-ASPP style segmentation network."""
+    def __init__(self, num_classes, trunk, use_aspp=False, num_filters=128):
+        """Initialize a new segmentation model.
+
+        Keyword arguments:
+        num_classes -- number of output classes (e.g., 19 for Cityscapes)
+        trunk -- the name of the trunk to use ('mobilenetv3_large', 'mobilenetv3_small')
+        use_aspp -- whether to use DeepLabV3+ style ASPP (True) or Lite R-ASPP (False)
+            (setting this to True may yield better results, at the cost of latency)
+        num_filters -- the number of filters in the segmentation head
+        """
+        super(LRASPP, self).__init__()
+
+        self.trunk, _, _, high_level_ch = get_trunk(trunk_name=trunk)
+        self.use_aspp = use_aspp
+
+        # Reduced atrous spatial pyramid pooling
+        if self.use_aspp:
+            self.aspp_conv1 = nn.Sequential(
+                nn.Conv2d(high_level_ch, num_filters, 1, bias=False),
+                nn.BatchNorm2d(num_filters),
+                nn.ReLU(inplace=True),
+            )
+            self.aspp_conv2 = nn.Sequential(
+                nn.Conv2d(high_level_ch, num_filters, 1, bias=False),
+                nn.Conv2d(num_filters, num_filters, 3, dilation=12, padding=12),
+                nn.BatchNorm2d(num_filters),
+                nn.ReLU(inplace=True),
+            )
+            self.aspp_conv3 = nn.Sequential(
+                nn.Conv2d(high_level_ch, num_filters, kernel_size=1, bias=False),
+                nn.Conv2d(num_filters, num_filters, kernel_size=3, dilation=24, padding=24),
                 nn.BatchNorm2d(num_filters),
                 nn.ReLU(inplace=True),
             )
