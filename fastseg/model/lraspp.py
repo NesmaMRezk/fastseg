@@ -123,13 +123,13 @@ class LRASPP(BaseSegmentation):
         y = torch.cat([y, self.convs4(s4)], 1)
         y = self.conv_up2(y)
         #y = F.interpolate(y, size=s2.shape[2:], mode='bilinear', align_corners=False)
-        y=y.repeat(1,1,s2.size(2),s2.size(3))
+       # y=y.repeat(1,1,s2.size(2),s2.size(3))
         y = torch.cat([y, self.convs2(s2)], 1)
         y = self.conv_up3(y)
         y = self.last(y)
         #y = F.interpolate(y, size=x.shape[2:], mode='bilinear', align_corners=False)
-        y_r=y.repeat(1,1,x.size(2),x.size(3))
-        y = y_r[:, :, :desired_shape[2], :desired_shape[3]]
+        #y_r=y.repeat(1,1,x.size(2),x.size(3))
+        #y = y_r[:, :, :desired_shape[2], :desired_shape[3]]
         return y
 
 class LRASPP_base(BaseSegmentation):
