@@ -124,12 +124,21 @@ class LRASPP(BaseSegmentation):
         y = self.conv_up2(y)
         #y = F.interpolate(y, size=s2.shape[2:], mode='bilinear', align_corners=False)
        # y=y.repeat(1,1,s2.size(2),s2.size(3))
+        repeat_factor_h = s2.size(2) // y.size(2) + 1  # How many times to repeat in height
+        repeat_factor_w = s2.size(3) // y.size(3) + 1  # How many times to repeat in width
+        y_repeated = y.repeat(1, 1, repeat_factor_h, repeat_factor_w)
+        y= y_repeated[:, :, :s2.size(2), :s2.size(3)]
+        
         y = torch.cat([y, self.convs2(s2)], 1)
         y = self.conv_up3(y)
         y = self.last(y)
         #y = F.interpolate(y, size=x.shape[2:], mode='bilinear', align_corners=False)
         #y_r=y.repeat(1,1,x.size(2),x.size(3))
         #y = y_r[:, :, :desired_shape[2], :desired_shape[3]]
+        repeat_factor_h = x.size(2) // x.size(2) + 1  # How many times to repeat in height
+        repeat_factor_w = x.size(3) // x.size(3) + 1  # How many times to repeat in width
+        y_repeated = y.repeat(1, 1, repeat_factor_h, repeat_factor_w)
+        y= y_repeated[:, :, :x.size(2), :x.size(3)]
         return y
 
 class LRASPP_base(BaseSegmentation):
