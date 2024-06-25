@@ -111,16 +111,16 @@ class LRASPP(BaseSegmentation):
             )
         y = self.conv_up1(aspp)
        # y = F.interpolate(y, size=s4.shape[2:], mode='bilinear', align_corners=False)
-        y=y.repeat(-1,-1,s4.size(2),s4.size(3))
+        y=y.repeat(1,1,s4.size(2),s4.size(3))
         y = torch.cat([y, self.convs4(s4)], 1)
         y = self.conv_up2(y)
         #y = F.interpolate(y, size=s2.shape[2:], mode='bilinear', align_corners=False)
-        y=y.repeat(-1,-1,s2.size(2),s2.size(3))
+        y=y.repeat(1,1,s2.size(2),s2.size(3))
         y = torch.cat([y, self.convs2(s2)], 1)
         y = self.conv_up3(y)
         y = self.last(y)
         #y = F.interpolate(y, size=x.shape[2:], mode='bilinear', align_corners=False)
-        y=y.repeat(-1,-1,x.size(2),x.size(3))
+        y=y.repeat(1,1,x.size(2),x.size(3))
         return y
 
 class LRASPP_base(BaseSegmentation):
