@@ -111,7 +111,15 @@ class LRASPP(BaseSegmentation):
             )
         y = self.conv_up1(aspp)
        # y = F.interpolate(y, size=s4.shape[2:], mode='bilinear', align_corners=False)
-        y=y.repeat(1,1,s4.size(2),s4.size(3))
+       # Calculate the repeating factors
+        repeat_factor_h = s4[2] // y.size(2) + 1  # How many times to repeat in height
+        repeat_factor_w = s4[3] // y.size(3) + 1  # How many times to repeat in width
+        
+        # Repeat the tensor
+        y_repeated = y.repeat(1, 1, repeat_factor_h, repeat_factor_w)
+        
+        # Now y_repeated might be larger than needed, so we slice it to match the desired shape
+        y= y_repeated[:, :, :s4[2], :s4[3]]
         y = torch.cat([y, self.convs4(s4)], 1)
         y = self.conv_up2(y)
         #y = F.interpolate(y, size=s2.shape[2:], mode='bilinear', align_corners=False)
@@ -120,7 +128,8 @@ class LRASPP(BaseSegmentation):
         y = self.conv_up3(y)
         y = self.last(y)
         #y = F.interpolate(y, size=x.shape[2:], mode='bilinear', align_corners=False)
-        y=y.repeat(1,1,x.size(2),x.size(3))
+        y_r=y.repeat(1,1,x.size(2),x.size(3))
+        y = y_r[:, :, :desired_shape[2], :desired_shape[3]]
         return y
 
 class LRASPP_base(BaseSegmentation):
