@@ -31,7 +31,7 @@ class CustomUpsampleLayer(nn.Module):
         return self.upconv(x, output_size=output_size)
 import torch.nn.functional as F
 
-class LRASPP(BaseSegmentation):
+class LRASPP_repeat_notworking(BaseSegmentation):
     """Lite R-ASPP style segmentation network."""
     def __init__(self, num_classes, trunk, use_aspp=False, num_filters=128):
         """Initialize a new segmentation model.
@@ -143,7 +143,7 @@ class LRASPP(BaseSegmentation):
         y=self.conv_after_repeat(y)
         return y
 
-class LRASPP_base(BaseSegmentation):
+class LRASPP(BaseSegmentation):
     """Lite R-ASPP style segmentation network."""
     def __init__(self, num_classes, trunk, use_aspp=False, num_filters=128):
         """Initialize a new segmentation model.
