@@ -139,7 +139,8 @@ class LRASPP(BaseSegmentation):
         repeat_factor_h = x.size(2) // x.size(2) + 1  # How many times to repeat in height
         repeat_factor_w = x.size(3) // x.size(3) + 1  # How many times to repeat in width
         y_repeated = y.repeat(1, 1, repeat_factor_h, repeat_factor_w)
-        y= self.conv_after_repeat(y_repeated[:, :, :x.size(2), :x.size(3)])
+        y= y_repeated[:, :, :x.size(2), :x.size(3)]
+        y=self.conv_after_repeat(y)
         return y
 
 class LRASPP_base(BaseSegmentation):
