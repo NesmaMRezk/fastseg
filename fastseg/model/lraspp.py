@@ -92,6 +92,7 @@ class LRASPP(BaseSegmentation):
         self.conv_up1 = nn.Conv2d(aspp_out_ch, num_filters, kernel_size=1)
         self.conv_up2 = ConvBnRelu(num_filters + 64, num_filters, kernel_size=1)
         self.conv_up3 = ConvBnRelu(num_filters + 32, num_filters, kernel_size=1)
+        self.conv_after_repeat = nn.Conv2d(num_filters, num_filters, kernel_size=1)
         self.last = nn.Conv2d(num_filters, num_classes, kernel_size=1)
 
     def forward(self, x):
@@ -101,7 +102,7 @@ class LRASPP(BaseSegmentation):
                 self.aspp_conv1(final),
                 self.aspp_conv2(final),
                 self.aspp_conv3(final),
-                self.aspp_pool(final).repeat(1, 1,final.shape[2], final.shape[3]),], 1)
+                self.conv_after_repeat(self.aspp_pool(final).repeat(1, 1,final.shape[2], final.shape[3]),], 1))
         else:
             aspp = self.aspp_conv1(final) * F.interpolate(
                 self.aspp_conv2(final),
