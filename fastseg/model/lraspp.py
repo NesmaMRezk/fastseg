@@ -165,21 +165,31 @@ class ConvBnRelu(nn.Module):
 # Function to apply Tucker decomposition to a convolutional layer
 def tucker_decompose_conv_layer(layer, rank):
     weight = layer.weight.data
-    core, factors = tucker(weight, rank=rank)
+    rank = (rank, rank, weight.shape[2], weight.shape[3])  # Adjust rank to match tensor dimensions
+
+    core, factors = partial_tucker(weight, rank=rank, modes=[0, 1])
 
     pointwise_s_to_r = nn.Conv2d(in_channels=core.shape[1], out_channels=core.shape[0],
                                  kernel_size=1, stride=1, padding=0, bias=False)
-    depthwise_r = nn.Conv2d(in_channels=core.shape[0], out_channels=core.shape[0],
-                            kernel_size=layer.kernel_size, stride=layer.stride,
-                            padding=layer.padding, groups=core.shape[0], bias=False)
-    pointwise_r_to_t = nn.Conv2d(in_channels=core.shape[0], out_channels=layer.out_channels,
-                                 kernel_size=1, stride=1, padding=0, bias=True)
+    pointwise_s_to_r.weight.data = factors[0].unsqueeze(2).unsqueeze(3)
 
-    pointwise_s_to_r.weight.data = factors[0].permute(3, 2, 0, 1).contiguous()
-    depthwise_r.weight.data = core.contiguous()
-    pointwise_r_to_t.weight.data = factors[1].permute(3, 2, 0, 1).contiguous()
+    depthwise_r_to_r = nn.Conv2d(in_channels=core.shape[0], out_channels=core.shape[0],
+                                 kernel_size=layer.kernel_size, stride=layer.stride,
+                                 padding=layer.padding, dilation=layer.dilation,
+                                 groups=core.shape[0], bias=False)
+    depthwise_r_to_r.weight.data = core
 
-    return nn.Sequential(pointwise_s_to_r, depthwise_r, pointwise_r_to_t)
+    pointwise_r_to_t = nn.Conv2d(in_channels=core.shape[0], out_channels=core.shape[1],
+                                 kernel_size=1, stride=1, padding=0, bias=False)
+    pointwise_r_to_t.weight.data = factors[1].unsqueeze(2).unsqueeze(3)
+
+    decomposed_layer = nn.Sequential(
+        pointwise_s_to_r,
+        depthwise_r_to_r,
+        pointwise_r_to_t
+    )
+
+    return decomposed_layer
 
 class LRASPP(BaseSegmentation):
     """Lite R-ASPP style segmentation network."""
@@ -242,7 +252,7 @@ class LRASPP(BaseSegmentation):
 
         print("helllo")
         # Apply Tucker decomposition to the segmentation head
-        self.conv_up1 = tucker_decompose_conv_layer(nn.Conv2d(aspp_out_ch, num_filters, kernel_size=1), rank=(num_filters, aspp_out_ch))
+        self.conv_up1 = tucker_decompose_conv_layer(nn.Conv2d(aspp_out_ch, num_filters, kernel_size=1), rank=(64, 32, 3, 3))
         self.conv_up2 = tucker_decompose_conv_layer(ConvBnRelu(num_filters + 64, num_filters, kernel_size=1).conv, rank=(num_filters, num_filters + 64))
         self.conv_up3 = tucker_decompose_conv_layer(ConvBnRelu(num_filters + 32, num_filters, kernel_size=1).conv, rank=(num_filters, num_filters + 32))
         self.last = nn.Conv2d(num_filters, num_classes, kernel_size=1)
