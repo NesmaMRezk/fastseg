@@ -142,8 +142,139 @@ class LRASPP_repeat_notworking(BaseSegmentation):
         y= y_repeated[:, :, :x.size(2), :x.size(3)]
         y=self.conv_after_repeat(y)
         return y
+#tucker applied to bottlneck conv layers
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from tensorly.decomposition import tucker
+import tensorly as tl
+
+tl.set_backend('pytorch')
+
+# Define a helper class for ConvBnRelu
+class ConvBnRelu(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0):
+        super(ConvBnRelu, self).__init__()
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding)
+        self.bn = nn.BatchNorm2d(out_channels)
+        self.relu = nn.ReLU(inplace=True)
+
+    def forward(self, x):
+        return self.relu(self.bn(self.conv(x)))
+
+# Function to apply Tucker decomposition to a convolutional layer
+def tucker_decompose_conv_layer(layer, rank):
+    weight = layer.weight.data
+    core, factors = tucker(weight, rank=rank)
+
+    pointwise_s_to_r = nn.Conv2d(in_channels=core.shape[1], out_channels=core.shape[0],
+                                 kernel_size=1, stride=1, padding=0, bias=False)
+    depthwise_r = nn.Conv2d(in_channels=core.shape[0], out_channels=core.shape[0],
+                            kernel_size=layer.kernel_size, stride=layer.stride,
+                            padding=layer.padding, groups=core.shape[0], bias=False)
+    pointwise_r_to_t = nn.Conv2d(in_channels=core.shape[0], out_channels=layer.out_channels,
+                                 kernel_size=1, stride=1, padding=0, bias=True)
+
+    pointwise_s_to_r.weight.data = factors[0].permute(3, 2, 0, 1).contiguous()
+    depthwise_r.weight.data = core.contiguous()
+    pointwise_r_to_t.weight.data = factors[1].permute(3, 2, 0, 1).contiguous()
+
+    return nn.Sequential(pointwise_s_to_r, depthwise_r, pointwise_r_to_t)
 
 class LRASPP(BaseSegmentation):
+    """Lite R-ASPP style segmentation network."""
+    def __init__(self, num_classes, trunk, use_aspp=False, num_filters=128):
+        """Initialize a new segmentation model.
+
+        Keyword arguments:
+        num_classes -- number of output classes (e.g., 19 for Cityscapes)
+        trunk -- the name of the trunk to use ('mobilenetv3_large', 'mobilenetv3_small')
+        use_aspp -- whether to use DeepLabV3+ style ASPP (True) or Lite R-ASPP (False)
+            (setting this to True may yield better results, at the cost of latency)
+        num_filters -- the number of filters in the segmentation head
+        """
+        super(LRASPP, self).__init__()
+
+        self.trunk, s2_ch, s4_ch, high_level_ch = get_trunk(trunk_name=trunk)
+        self.use_aspp = use_aspp
+
+        # Reduced atrous spatial pyramid pooling
+        if self.use_aspp:
+            self.aspp_conv1 = nn.Sequential(
+                nn.Conv2d(high_level_ch, num_filters, 1, bias=False),
+                nn.BatchNorm2d(num_filters),
+                nn.ReLU(inplace=True),
+            )
+            self.aspp_conv2 = nn.Sequential(
+                nn.Conv2d(high_level_ch, num_filters, 1, bias=False),
+                nn.Conv2d(num_filters, num_filters, 3, dilation=12, padding=12),
+                nn.BatchNorm2d(num_filters),
+                nn.ReLU(inplace=True),
+            )
+            self.aspp_conv3 = nn.Sequential(
+                nn.Conv2d(high_level_ch, num_filters, 1, bias=False),
+                nn.Conv2d(num_filters, num_filters, 3, dilation=36, padding=36),
+                nn.BatchNorm2d(num_filters),
+                nn.ReLU(inplace=True),
+            )
+            self.aspp_pool = nn.Sequential(
+                nn.AdaptiveAvgPool2d(1),
+                nn.Conv2d(high_level_ch, num_filters, 1, bias=False),
+                nn.BatchNorm2d(num_filters),
+                nn.ReLU(inplace=True),
+            )
+            aspp_out_ch = num_filters * 4
+        else:
+            self.aspp_conv1 = nn.Sequential(
+                nn.Conv2d(high_level_ch, num_filters, 1, bias=False),
+                nn.BatchNorm2d(num_filters),
+                nn.ReLU(inplace=True),
+            )
+            self.aspp_conv2 = nn.Sequential(
+                nn.AvgPool2d(kernel_size=(49, 49), stride=(16, 20)),
+                nn.Conv2d(high_level_ch, num_filters, 1, bias=False),
+                nn.Sigmoid(),
+            )
+            aspp_out_ch = num_filters
+
+        self.convs2 = nn.Conv2d(s2_ch, 32, kernel_size=1, bias=False)
+        self.convs4 = nn.Conv2d(s4_ch, 64, kernel_size=1, bias=False)
+
+        # Apply Tucker decomposition to the segmentation head
+        self.conv_up1 = tucker_decompose_conv_layer(nn.Conv2d(aspp_out_ch, num_filters, kernel_size=1), rank=(num_filters, aspp_out_ch))
+        self.conv_up2 = tucker_decompose_conv_layer(ConvBnRelu(num_filters + 64, num_filters, kernel_size=1).conv, rank=(num_filters, num_filters + 64))
+        self.conv_up3 = tucker_decompose_conv_layer(ConvBnRelu(num_filters + 32, num_filters, kernel_size=1).conv, rank=(num_filters, num_filters + 32))
+        self.last = nn.Conv2d(num_filters, num_classes, kernel_size=1)
+    def forward(self, x):
+        s2, s4, final = self.trunk(x)
+        if self.use_aspp:
+            aspp = torch.cat([
+                self.aspp_conv1(final),
+                self.aspp_conv2(final),
+                self.aspp_conv3(final),
+                F.interpolate(self.aspp_pool(final), size=final.shape[2:]),
+            ], 1)
+        else:
+            aspp = self.aspp_conv1(final) * F.interpolate(
+                self.aspp_conv2(final),
+                final.shape[2:],
+                mode='bilinear',
+                align_corners=True
+            )
+        y = self.conv_up1(aspp)
+        y = F.interpolate(y, size=s4.shape[2:], mode='bilinear', align_corners=False)
+
+        y = torch.cat([y, self.convs4(s4)], 1)
+        y = self.conv_up2(y)
+        y = F.interpolate(y, size=s2.shape[2:], mode='bilinear', align_corners=False)
+
+        y = torch.cat([y, self.convs2(s2)], 1)
+        y = self.conv_up3(y)
+        y = self.last(y)
+        y = F.interpolate(y, size=x.shape[2:], mode='bilinear', align_corners=False)
+        return y
+
+class LRASPP_base(BaseSegmentation):
     """Lite R-ASPP style segmentation network."""
     def __init__(self, num_classes, trunk, use_aspp=False, num_filters=128):
         """Initialize a new segmentation model.
