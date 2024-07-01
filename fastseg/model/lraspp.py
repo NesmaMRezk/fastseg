@@ -195,7 +195,7 @@ class LRASPP(BaseSegmentation):
         """
         super(LRASPP, self).__init__()
 
-        self.trunk, s2_ch, s4_ch, high_level_ch = get_trunk(trunk_name=trunk)
+          self.trunk, s2_ch, s4_ch, high_level_ch = get_trunk(trunk_name=trunk)
         self.use_aspp = use_aspp
 
         # Reduced atrous spatial pyramid pooling
