@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+from tensorly.decomposition import partial_tucker
 from .utils import get_trunk, ConvBnRelu
 from .base import BaseSegmentation
 
