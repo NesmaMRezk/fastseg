@@ -240,12 +240,13 @@ class LRASPP(BaseSegmentation):
         self.convs2 = nn.Conv2d(s2_ch, 32, kernel_size=1, bias=False)
         self.convs4 = nn.Conv2d(s4_ch, 64, kernel_size=1, bias=False)
 
+        print("tucker added)
         # Apply Tucker decomposition to the segmentation head
         self.conv_up1 = tucker_decompose_conv_layer(nn.Conv2d(aspp_out_ch, num_filters, kernel_size=1), rank=(num_filters, aspp_out_ch))
         self.conv_up2 = tucker_decompose_conv_layer(ConvBnRelu(num_filters + 64, num_filters, kernel_size=1).conv, rank=(num_filters, num_filters + 64))
         self.conv_up3 = tucker_decompose_conv_layer(ConvBnRelu(num_filters + 32, num_filters, kernel_size=1).conv, rank=(num_filters, num_filters + 32))
         self.last = nn.Conv2d(num_filters, num_classes, kernel_size=1)
-        print("tucker added)
+        
     def forward(self, x):
         s2, s4, final = self.trunk(x)
         if self.use_aspp:
