@@ -191,7 +191,7 @@ def tucker_decompose_conv_layer(layer, rank):
 
     return decomposed_layer
 
-class LRASPP(BaseSegmentation):
+class LRASPP_try_tucker(BaseSegmentation):
     """Lite R-ASPP style segmentation network."""
     def __init__(self, num_classes, trunk, use_aspp=False, num_filters=128):
         """Initialize a new segmentation model.
@@ -286,7 +286,7 @@ class LRASPP(BaseSegmentation):
         y = F.interpolate(y, size=x.shape[2:], mode='bilinear', align_corners=False)
         return y
 
-class LRASPP_base(BaseSegmentation):
+class LRASPP(BaseSegmentation):
     """Lite R-ASPP style segmentation network."""
     def __init__(self, num_classes, trunk, use_aspp=False, num_filters=128):
         """Initialize a new segmentation model.
@@ -351,6 +351,7 @@ class LRASPP_base(BaseSegmentation):
 
     def forward(self, x):
         s2, s4, final = self.trunk(x)
+        print(final.dim())
         if self.use_aspp:
             aspp = torch.cat([
                 self.aspp_conv1(final),
