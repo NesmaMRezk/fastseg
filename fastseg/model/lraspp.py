@@ -6,7 +6,7 @@ from .utils import get_trunk, ConvBnRelu
 from .base import BaseSegmentation
 
 
-class LRASPP_try_tucker(BaseSegmentation):
+class LRASPP(BaseSegmentation):
     """Lite R-ASPP style segmentation network."""
     def __init__(self, num_classes, trunk, use_aspp=False, num_filters=128):
         """Initialize a new segmentation model.
