@@ -12,6 +12,10 @@ import torch
 import torch.nn as nn
 from tensorly.decomposition import partial_tucker
 
+import torch
+import torch.nn as nn
+from tensorly.decomposition import partial_tucker
+
 # Function to apply Tucker decomposition to a convolutional layer
 def tucker_decompose_conv_layer(layer, rank):
     weight = layer.weight.data
@@ -20,12 +24,11 @@ def tucker_decompose_conv_layer(layer, rank):
     # Perform Tucker decomposition
     core, factors = partial_tucker(weight, rank=rank, modes=[0, 1])
     
-    # Ensure `core` is a tensor and has a shape attribute
+    # Convert core and factors to tensors if they are not already
     if not isinstance(core, torch.Tensor):
-        core = torch.tensor(core)
+        core = torch.from_numpy(core)
     
-    if not all(isinstance(f, torch.Tensor) for f in factors):
-        factors = [torch.tensor(f) for f in factors]
+    factors = [torch.from_numpy(factor) if not isinstance(factor, torch.Tensor) else factor for factor in factors]
 
     # Create pointwise_s_to_r Conv2d layer
     pointwise_s_to_r = nn.Conv2d(in_channels=core.shape[1], out_channels=core.shape[0],
