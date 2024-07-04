@@ -8,27 +8,43 @@ from .base import BaseSegmentation
 import tensorly as tl
 
 
+import torch
+import torch.nn as nn
+from tensorly.decomposition import partial_tucker
+
 # Function to apply Tucker decomposition to a convolutional layer
 def tucker_decompose_conv_layer(layer, rank):
     weight = layer.weight.data
     rank = (rank, rank, weight.shape[2], weight.shape[3])  # Adjust rank to match tensor dimensions
 
+    # Perform Tucker decomposition
     core, factors = partial_tucker(weight, rank=rank, modes=[0, 1])
-    print(core)
+    
+    # Ensure `core` is a tensor and has a shape attribute
+    if not isinstance(core, torch.Tensor):
+        core = torch.tensor(core)
+    
+    if not all(isinstance(f, torch.Tensor) for f in factors):
+        factors = [torch.tensor(f) for f in factors]
+
+    # Create pointwise_s_to_r Conv2d layer
     pointwise_s_to_r = nn.Conv2d(in_channels=core.shape[1], out_channels=core.shape[0],
                                  kernel_size=1, stride=1, padding=0, bias=False)
     pointwise_s_to_r.weight.data = factors[0].unsqueeze(2).unsqueeze(3)
 
+    # Create depthwise_r_to_r Conv2d layer
     depthwise_r_to_r = nn.Conv2d(in_channels=core.shape[0], out_channels=core.shape[0],
                                  kernel_size=layer.kernel_size, stride=layer.stride,
                                  padding=layer.padding, dilation=layer.dilation,
                                  groups=core.shape[0], bias=False)
     depthwise_r_to_r.weight.data = core
 
+    # Create pointwise_r_to_t Conv2d layer
     pointwise_r_to_t = nn.Conv2d(in_channels=core.shape[0], out_channels=core.shape[1],
                                  kernel_size=1, stride=1, padding=0, bias=False)
     pointwise_r_to_t.weight.data = factors[1].unsqueeze(2).unsqueeze(3)
 
+    # Sequentially combine the layers into a decomposed layer
     decomposed_layer = nn.Sequential(
         pointwise_s_to_r,
         depthwise_r_to_r,
@@ -36,6 +52,7 @@ def tucker_decompose_conv_layer(layer, rank):
     )
 
     return decomposed_layer
+
 
 
 class LRASPP(BaseSegmentation):
