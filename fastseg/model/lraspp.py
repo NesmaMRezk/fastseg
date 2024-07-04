@@ -13,10 +13,8 @@ def tucker_decompose_conv_layer(layer, rank):
     weight = layer.weight.data
     rank = (rank, rank, weight.shape[2], weight.shape[3])  # Adjust rank to match tensor dimensions
 
-    core, factors = partial_tucker(weight, rank=rank, modes=[0, 1])
-    print(core)
-    print("factors")
-    print(factors)
+    core_all, factors = partial_tucker(weight, rank=rank, modes=[0, 1])
+    core=core_all[0]
     pointwise_s_to_r = nn.Conv2d(in_channels=core[1].shape, out_channels=core[0].shape,
                                  kernel_size=1, stride=1, padding=0, bias=False)
     pointwise_s_to_r.weight.data = factors[0].unsqueeze(2).unsqueeze(3)
