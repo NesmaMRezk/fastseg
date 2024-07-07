@@ -11,7 +11,7 @@ import tensorly as tl
 # Function to apply Tucker decomposition to a convolutional layer
 def tucker_decompose_conv_layer(layer, rank):
     weight = layer.weight.data
-    in_channels, out_channels, k_h, k_w = weight.shape
+    out_channels, in_channels, k_h, k_w = weight.shape
     print("in_channels")
     print(in_channels)
     print("out_channels")
