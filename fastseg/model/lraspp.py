@@ -12,11 +12,15 @@ import tensorly as tl
 def tucker_decompose_conv_layer(layer, rank):
     weight = layer.weight.data
     in_channels, out_channels, k_h, k_w = weight.shape
+    print("in_channels")
+    print(in_channels)
+    print("out_channels")
+    print(out_channels)
     rank = (rank, rank, k_h, k_w)  # Adjust rank to match tensor dimensions
     core_all, factors = partial_tucker(weight, rank=rank, modes=[0, 1])
     #core=core_all[0]
     core, [*factors] = core_all
-    print(factors)
+    
     pointwise_s_to_r = nn.Conv2d(in_channels=in_channels, out_channels=core.shape[0],
                                  kernel_size=1, stride=1, padding=0, bias=False)
     pointwise_s_to_r.weight.data = factors[0].unsqueeze(2).unsqueeze(3)
@@ -353,7 +357,7 @@ class LRASPP_base(BaseSegmentation):
 
     def forward(self, x):
         s2, s4, final = self.trunk(x)
-        print(final.dim())
+        
         if self.use_aspp:
             aspp = torch.cat([
                 self.aspp_conv1(final),
