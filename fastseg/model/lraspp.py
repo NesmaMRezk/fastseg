@@ -24,17 +24,20 @@ def tucker_decompose_conv_layer(layer, rank):
     pointwise_s_to_r = nn.Conv2d(in_channels=in_channels, out_channels=core.shape[0],
                                  kernel_size=1, stride=1, padding=0, bias=False)
     pointwise_s_to_r.weight.data = factors[0].unsqueeze(2).unsqueeze(3)
-
+    print( "pointwise_s_to_r.weight.data")
+    print( pointwise_s_to_r.weight.data)
     depthwise_r_to_r = nn.Conv2d(in_channels=core.shape[0], out_channels=core.shape[0],
                                  kernel_size=(k_h, k_w), stride=layer.stride,
                                  padding=layer.padding, dilation=layer.dilation,
                                  groups=core.shape[0], bias=False)
     depthwise_r_to_r.weight.data = core
-
+    print( "pointwise_r_to_r.weight.data")
+    print( pointwise_r_to_r.weight.data)
     pointwise_r_to_t = nn.Conv2d(in_channels=core.shape[0], out_channels=out_channels,
                                  kernel_size=1, stride=1, padding=0, bias=False)
     pointwise_r_to_t.weight.data = factors[1].unsqueeze(2).unsqueeze(3)
-
+    print( "pointwise_r_to_t.weight.data")
+    print( pointwise_r_to_t.weight.data)
     decomposed_layer = nn.Sequential(
         pointwise_s_to_r,
         depthwise_r_to_r,
