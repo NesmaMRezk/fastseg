@@ -40,7 +40,7 @@ def tucker_decompose_conv_layer(layer, rank):
     return decomposed_layer
 
 
-class LRASPP_tensor(BaseSegmentation):
+class LRASPP(BaseSegmentation):
     """Lite R-ASPP style segmentation network."""
     def __init__(self, num_classes, trunk, use_aspp=False, num_filters=128):
         """Initialize a new segmentation model.
@@ -288,7 +288,7 @@ class ConvBnRelu(nn.Module):
         return self.relu(self.bn(self.conv(x)))
 
 
-class LRASPP(BaseSegmentation):
+class LRASPP_base(BaseSegmentation):
     """Lite R-ASPP style segmentation network."""
     def __init__(self, num_classes, trunk, use_aspp=False, num_filters=128):
         """Initialize a new segmentation model.
