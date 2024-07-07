@@ -11,23 +11,23 @@ import tensorly as tl
 # Function to apply Tucker decomposition to a convolutional layer
 def tucker_decompose_conv_layer(layer, rank):
     weight = layer.weight.data
-    rank = (rank, rank, weight.shape[2], weight.shape[3])  # Adjust rank to match tensor dimensions
-
+    in_channels, out_channels, k_h, k_w = weight.shape
+    rank = (rank, rank, k_h, k_w)  # Adjust rank to match tensor dimensions
     core_all, factors = partial_tucker(weight, rank=rank, modes=[0, 1])
     #core=core_all[0]
     core, [*factors] = core_all
     print(factors)
-    pointwise_s_to_r = nn.Conv2d(in_channels=core.shape[1], out_channels=core.shape[0],
+    pointwise_s_to_r = nn.Conv2d(in_channels=in_channels, out_channels=core.shape[0],
                                  kernel_size=1, stride=1, padding=0, bias=False)
     pointwise_s_to_r.weight.data = factors[0].unsqueeze(2).unsqueeze(3)
 
     depthwise_r_to_r = nn.Conv2d(in_channels=core.shape[0], out_channels=core.shape[0],
-                                 kernel_size=layer.kernel_size, stride=layer.stride,
+                                 kernel_size=(k_h, k_w), stride=layer.stride,
                                  padding=layer.padding, dilation=layer.dilation,
                                  groups=core.shape[0], bias=False)
     depthwise_r_to_r.weight.data = core
 
-    pointwise_r_to_t = nn.Conv2d(in_channels=core.shape[0], out_channels=core.shape[1],
+    pointwise_r_to_t = nn.Conv2d(in_channels=core.shape[0], out_channels=out_channels,
                                  kernel_size=1, stride=1, padding=0, bias=False)
     pointwise_r_to_t.weight.data = factors[1].unsqueeze(2).unsqueeze(3)
 
@@ -113,7 +113,7 @@ class LRASPP(BaseSegmentation):
                 self.aspp_conv1(final),
                 self.aspp_conv2(final),
                 self.aspp_conv3(final),
-                F.interpolate(self.aspp_pool(final), size=final.shape[2:]),
+                F.interpolate(self.aspp_pool(final), size=final.shape[2:]و mode='bilinear', align_corners=True),
             ], 1)
         else:
             aspp = self.aspp_conv1(final) * F.interpolate(
