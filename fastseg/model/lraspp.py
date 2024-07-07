@@ -12,6 +12,7 @@ import tensorly as tl
 def tucker_decompose_conv_layer(layer, rank):
     weight = layer.weight.data
     out_channels, in_channels, k_h, k_w = weight.shape
+    print(layer.shape)
     print("in_channels")
     print(in_channels)
     print("out_channels")
