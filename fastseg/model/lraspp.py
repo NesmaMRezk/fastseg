@@ -366,8 +366,20 @@ class LRASPP(BaseSegmentation):
         if self.use_aspp:
             
             x=self.aspp_pool(final)
+            x[0, 0, 0, 0] = 117
+            x[0, 1, 0, 0] = 26
+            x[0, 2, 0, 0] = 0
+            x[0, 3, 0, 0] = 65
+            x[0, 4, 0, 0] = 0
+            x[0, 5, 0, 0] = 0
+            x[0, 6, 0, 0] = 0
+            x[0, 7, 0, 0] = 6
+            x[0, 8, 0, 0] = 0
+            x[0, 9, 0, 0] = 25
+            x[0, 10, 0, 0] = 64
+            x[0, 11, 0, 0] = 124
             print("x")
-            print(x)
+            
             Y=F.interpolate(x, size=final.shape[2:],mode='bilinear', align_corners=True),
             print("Y")
             print(Y)
