@@ -365,15 +365,12 @@ class LRASPP(BaseSegmentation):
         
         if self.use_aspp:
             
-            x=self.aspp_pool(final)
-            
-            Y=F.interpolate(x, size=final.shape[2:],mode='bilinear', align_corners=True)
-            
             aspp = torch.cat([
                 self.aspp_conv1(final),
                 self.aspp_conv2(final),
                 self.aspp_conv3(final),
-                Y], 1)
+                F.interpolate(self.aspp_pool(final), size=final.shape[2:]),
+            ], 1)
                 
         else:
             aspp = self.aspp_conv1(final) * F.interpolate(
@@ -394,7 +391,7 @@ class LRASPP(BaseSegmentation):
         y = self.last(y)
         y = F.interpolate(y, size=x.shape[2:], mode='bilinear', align_corners=False)
         return y
-        
+
 class LRASPP_no_interpolate2(BaseSegmentation):
     """Lite R-ASPP style segmentation network."""
     def __init__(self, num_classes, trunk, use_aspp=False, num_filters=128):
