@@ -380,7 +380,7 @@ class LRASPP(BaseSegmentation):
             x[0, 11, 0, 0] = 124
             print("x")
             
-            Y=F.interpolate(x, size=final.shape[2:],mode='bilinear', align_corners=True),
+            Y=F.interpolate(x, size=final.shape[2:],mode='bilinear', align_corners=True)
             print("Y")
            
             print(Y[0,0,:,:])
