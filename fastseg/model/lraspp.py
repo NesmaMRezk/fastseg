@@ -382,6 +382,7 @@ class LRASPP(BaseSegmentation):
             
             Y=F.interpolate(x, size=final.shape[2:],mode='bilinear', align_corners=True),
             print("Y")
+            torch.set_printoptions(edgeitems=tensor.numel(), linewidth=1000)
             print(Y)
             aspp = torch.cat([
                 self.aspp_conv1(final),
