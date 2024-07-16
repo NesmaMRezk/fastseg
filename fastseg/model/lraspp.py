@@ -7,7 +7,7 @@ from .base import BaseSegmentation
 import tensorly as tl
 from tensorly.decomposition import parafac, partial_tucker
 import numpy as np
-
+import tltorch
 import traceback
 from collections import OrderedDict
 #import VBMF
@@ -113,7 +113,7 @@ class LRASPP(BaseSegmentation):
             )
             self.aspp_conv2 = nn.Sequential(
                 nn.Conv2d(high_level_ch, num_filters, 1, bias=False),
-                tucker_decompose_conv_layer(nn.Conv2d(num_filters, num_filters, 3, dilation=12, padding=12),64),
+                tltorch.FactorizedConv.from_conv((nn.Conv2d(num_filters, num_filters, 3, dilation=12, padding=12),64), rank=0.5, decompose_weights=True, factorization='tucker'),
                 nn.BatchNorm2d(num_filters),
                 nn.ReLU(inplace=True),
             )
@@ -148,9 +148,9 @@ class LRASPP(BaseSegmentation):
 
         print("helllo  2")
         # Apply Tucker decomposition to the segmentation head
-        self.conv_up1 = tucker_decompose_conv_layer(nn.Conv2d(aspp_out_ch, num_filters, kernel_size=1), rank=64)
-        self.conv_up2 = tucker_decompose_conv_layer(ConvBnRelu(num_filters + 64, num_filters, kernel_size=1).conv, rank=64)
-        self.conv_up3 = tucker_decompose_conv_layer(ConvBnRelu(num_filters + 32, num_filters, kernel_size=1).conv, rank=64)
+        self.conv_up1 = nn.Conv2d(aspp_out_ch, num_filters, kernel_size=1)
+        self.conv_up2 = ConvBnRelu(num_filters + 64, num_filters, kernel_size=1)
+        self.conv_up3 = ConvBnRelu(num_filters + 32, num_filters, kernel_size=1)
         self.last = nn.Conv2d(num_filters, num_classes, kernel_size=1)
         
     def forward(self, x):
