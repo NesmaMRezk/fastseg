@@ -84,7 +84,7 @@ class LRASPP(BaseSegmentation):
             )
             self.aspp_conv2 = nn.Sequential(
                 nn.Conv2d(high_level_ch, num_filters, 1, bias=False),
-                nn.Conv2d(num_filters, num_filters, 3, dilation=12, padding=12),
+                tucker_decompose_conv_layer(nn.Conv2d(num_filters, num_filters, 3, dilation=12, padding=12),64),
                 nn.BatchNorm2d(num_filters),
                 nn.ReLU(inplace=True),
             )
