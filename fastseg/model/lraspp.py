@@ -20,7 +20,12 @@ def tucker_decompose_conv_layer(layer, rank):
     # Adjust rank to match tensor dimensions
     rank = (rank, rank, k_h, k_w)
     core_all, factors = partial_tucker(weight, rank=rank, modes=[0, 1])
-    core, factors = core_all, factors
+    core = core_all[0]
+    factors = [*factors]
+    print(core)
+    print('core')
+    print(factors)
+    print('factors')
 
     # First Pointwise Layer: in_channels -> rank
     pointwise_s_to_r = nn.Conv2d(in_channels=in_channels, out_channels=core.shape[1],
