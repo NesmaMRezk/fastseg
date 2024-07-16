@@ -10,6 +10,10 @@ import tensorly as tl
 
 # Function to apply Tucker decomposition to a convolutional layer
 
+import torch
+import torch.nn as nn
+from tensorly.decomposition import partial_tucker
+
 def tucker_decompose_conv_layer(layer, rank):
     weight = layer.weight.data
     out_channels, in_channels, k_h, k_w = weight.shape
@@ -19,33 +23,28 @@ def tucker_decompose_conv_layer(layer, rank):
     
     # Adjust rank to match tensor dimensions
     rank = (rank, rank, k_h, k_w)
+    
+    # Perform Tucker decomposition
     core_all, factors = partial_tucker(weight, rank=rank, modes=[0, 1])
-  
-    core, [*factors] = core_all
-    print(core)
-    print('core')
-    print(factors)
-    print('factors')
-
-    # First Pointwise Layer: in_channels -> rank
-    pointwise_s_to_r = nn.Conv2d(in_channels=in_channels, out_channels=core.shape[1],
+    
+    # Unpack core and factors
+    core = core_all[0]
+    factors = [*factors]
+    
+    # Example usage for layers (adjust as needed)
+    pointwise_s_to_r = nn.Conv2d(in_channels=in_channels, out_channels=factors[1].shape[0],
                                  kernel_size=1, stride=1, padding=0, bias=False)
     pointwise_s_to_r.weight.data = factors[1].unsqueeze(2).unsqueeze(3)
-    print("pointwise_s_to_r.weight.data.shape:", pointwise_s_to_r.weight.data.shape)
     
-    # Depthwise Layer: rank -> rank
-    depthwise_r_to_r = nn.Conv2d(in_channels=core.shape[1], out_channels=core.shape[0],
+    depthwise_r_to_r = nn.Conv2d(in_channels=factors[1].shape[0], out_channels=core.shape[0],
                                  kernel_size=(k_h, k_w), stride=layer.stride,
                                  padding=layer.padding, dilation=layer.dilation,
-                                 groups=core.shape[1], bias=False)
+                                 groups=factors[1].shape[0], bias=False)
     depthwise_r_to_r.weight.data = core
-    print("depthwise_r_to_r.weight.data.shape:", depthwise_r_to_r.weight.data.shape)
     
-    # Second Pointwise Layer: rank -> out_channels
     pointwise_r_to_t = nn.Conv2d(in_channels=core.shape[0], out_channels=out_channels,
                                  kernel_size=1, stride=1, padding=0, bias=False)
     pointwise_r_to_t.weight.data = factors[0].unsqueeze(2).unsqueeze(3)
-    print("pointwise_r_to_t.weight.data.shape:", pointwise_r_to_t.weight.data.shape)
     
     decomposed_layer = nn.Sequential(
         pointwise_s_to_r,
@@ -54,6 +53,7 @@ def tucker_decompose_conv_layer(layer, rank):
     )
 
     return decomposed_layer
+
 
 
 
