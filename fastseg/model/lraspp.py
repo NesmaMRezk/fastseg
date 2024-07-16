@@ -1,59 +1,88 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from tensorly.decomposition import partial_tucker
 from .utils import get_trunk, ConvBnRelu
 from .base import BaseSegmentation
 #tucker applied to bottlneck conv layers
 import tensorly as tl
+from tensorly.decomposition import parafac, partial_tucker
+import numpy as np
+
+import traceback
+from collections import OrderedDict
+import VBMF
 
 
 # Function to apply Tucker decomposition to a convolutional layer
 
-import torch
-import torch.nn as nn
-from tensorly.decomposition import partial_tucker
+    
+def tucker_ranks(layer):
+    """ Unfold the 2 modes of the Tensor the decomposition will 
+    be performed on, and estimates the ranks of the matrices using VBMF 
+    """
+
+    weights = layer.weight.data.numpy()
+
+    unfold_0 = tl.base.unfold(weights, 0) 
+    unfold_1 = tl.base.unfold(weights, 1)
+
+    unfold_0 = torch.from_numpy(unfold_0)
+    unfold_1 = torch.from_numpy(unfold_1)
+    
+    _, diag_0, _, _ = VBMF.EVBMF(unfold_0)
+    _, diag_1, _, _ = VBMF.EVBMF(unfold_1)
+
+    ranks = [diag_0.shape[0], diag_1.shape[1]]
+    return ranks
+
+def tucker1_rank(layer):
+    """
+    Used for linear layer
+    """
+    weights = layer.weight.data
+
+    _, diag, _, _ = VBMF.EVBMF(weights)
+
+    rank = diag.shape[0]
+    return rank
 
 def tucker_decompose_conv_layer(layer, rank):
-    weight = layer.weight.data
-    out_channels, in_channels, k_h, k_w = weight.shape
-   
-    print("Input Channels:", in_channels)
-    print("Output Channels:", out_channels)
-    
-    # Adjust rank to match tensor dimensions
-    rank = (rank, rank, k_h, k_w)
-    
-    # Perform Tucker decomposition
-    core_all, factors = partial_tucker(weight, rank=rank, modes=[0, 1])
-    
-    # Unpack core and factors
-    core = core_all[0]
-    factors = [*factors]
-    
-    # Example usage for layers (adjust as needed)
-    pointwise_s_to_r = nn.Conv2d(in_channels=in_channels, out_channels=factors[1].shape[0],
-                                 kernel_size=1, stride=1, padding=0, bias=False)
-    pointwise_s_to_r.weight.data = factors[1].unsqueeze(2).unsqueeze(3)
-    
-    depthwise_r_to_r = nn.Conv2d(in_channels=factors[1].shape[0], out_channels=core.shape[0],
-                                 kernel_size=(k_h, k_w), stride=layer.stride,
-                                 padding=layer.padding, dilation=layer.dilation,
-                                 groups=factors[1].shape[0], bias=False)
-    depthwise_r_to_r.weight.data = core
-    
-    pointwise_r_to_t = nn.Conv2d(in_channels=core.shape[0], out_channels=out_channels,
-                                 kernel_size=1, stride=1, padding=0, bias=False)
-    pointwise_r_to_t.weight.data = factors[0].unsqueeze(2).unsqueeze(3)
-    
-    decomposed_layer = nn.Sequential(
-        pointwise_s_to_r,
-        depthwise_r_to_r,
-        pointwise_r_to_t
-    )
+    ranks = tucker_ranks(layer)
+    core, [last, first] = \
+        partial_tucker(layer.weight.data.numpy(), \
+            modes=[0, 1], rank=ranks, init='svd')
 
-    return decomposed_layer
+    # A pointwise convolution that reduces the channels from S to R3
+    first_layer = torch.nn.Conv2d(in_channels=first.shape[0], \
+            out_channels=first.shape[1], kernel_size=1,
+            stride=1, padding=0, dilation=layer.dilation, bias=False)
 
+    # A regular 2D convolution layer with R3 input channels 
+    # and R3 output channels
+    core_layer = torch.nn.Conv2d(in_channels=core.shape[1], \
+            out_channels=core.shape[0], kernel_size=layer.kernel_size,
+            stride=layer.stride, padding=layer.padding, dilation=layer.dilation,
+            bias=False)
+
+    # A pointwise convolution that increases the channels from R4 to T
+    last_layer = torch.nn.Conv2d(in_channels=last.shape[1], \
+        out_channels=last.shape[0], kernel_size=1, stride=1,
+        padding=0, dilation=layer.dilation, bias=True)
+
+    if layer.bias is not None:
+        last_layer.bias.data = layer.bias.data
+
+    last = torch.from_numpy(last.copy()) #convert from numpy to torch tensor --if error occurs when you use torch.from_numpy(nd.array), use nd.array.copr() instead
+    core = torch.from_numpy(core.copy())
+    first = torch.from_numpy(first.copy())
+
+    first_layer.weight.data = \
+        torch.transpose(first, 1, 0).unsqueeze(-1).unsqueeze(-1)
+    last_layer.weight.data = last.unsqueeze(-1).unsqueeze(-1)
+    core_layer.weight.data = core
+
+    new_layers = [first_layer, core_layer, last_layer]
+    return nn.Sequential(*new_layers)
 
 
 
