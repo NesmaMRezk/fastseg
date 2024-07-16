@@ -149,8 +149,8 @@ class LRASPP(BaseSegmentation):
         print("helllo  2")
         # Apply Tucker decomposition to the segmentation head
         self.conv_up1 = tltorch.FactorizedConv.from_conv(nn.Conv2d(aspp_out_ch, num_filters, kernel_size=1), rank=0.5, decompose_weights=True, factorization='tucker')
-        self.conv_up2 = tltorch.FactorizedConv.from_conv(ConvBnRelu(num_filters + 64, num_filters, kernel_size=1), rank=0.5, decompose_weights=True, factorization='tucker')
-        self.conv_up3 = tltorch.FactorizedConv.from_conv(ConvBnRelu(num_filters + 32, num_filters, kernel_size=1), rank=0.5, decompose_weights=True, factorization='tucker')
+        self.conv_up2 = tltorch.FactorizedConv.from_conv(ConvBnRelu(num_filters + 64, num_filters, kernel_size=1).conv, rank=0.5, decompose_weights=True, factorization='tucker')
+        self.conv_up3 = tltorch.FactorizedConv.from_conv(ConvBnRelu(num_filters + 32, num_filters, kernel_size=1).conv, rank=0.5, decompose_weights=True, factorization='tucker')
         self.last = nn.Conv2d(num_filters, num_classes, kernel_size=1)
         
     def forward(self, x):
