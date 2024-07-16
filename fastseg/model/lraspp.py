@@ -20,8 +20,8 @@ def tucker_decompose_conv_layer(layer, rank):
     # Adjust rank to match tensor dimensions
     rank = (rank, rank, k_h, k_w)
     core_all, factors = partial_tucker(weight, rank=rank, modes=[0, 1])
-    core = core_all[0]
-    factors = [*factors]
+  
+    core, [*factors] = core_all
     print(core)
     print('core')
     print(factors)
