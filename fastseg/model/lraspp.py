@@ -16,7 +16,7 @@ from collections import OrderedDict
 # Function to apply Tucker decomposition to a convolutional layer
 
     
-def tucker_ranks(layer):
+def tucker_ranks_hide(layer):
     """ Unfold the 2 modes of the Tensor the decomposition will 
     be performed on, and estimates the ranks of the matrices using VBMF 
     """
@@ -35,7 +35,7 @@ def tucker_ranks(layer):
     ranks = [diag_0.shape[0], diag_1.shape[1]]
     return ranks
 
-def tucker1_rank(layer):
+def tucker1_rank_hide(layer):
     """
     Used for linear layer
     """
@@ -46,7 +46,7 @@ def tucker1_rank(layer):
     rank = diag.shape[0]
     return rank
 
-def tucker_decompose_conv_layer(layer, rank):
+def tucker_decompose_conv_layer_hide(layer, rank):
     ranks = tucker_ranks(layer)
     core, [last, first] = \
         partial_tucker(layer.weight.data.numpy(), \
