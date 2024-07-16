@@ -11,7 +11,7 @@ import tensorly as tl
 # Function to apply Tucker decomposition to a convolutional layer
 def tucker_decompose_conv_layer(layer, rank):
     weight = layer.weight.data
-    in_channels, out_channels, k_h, k_w = weight.shape
+    out_channels, in_channels, k_h, k_w = weight.shape
    
     print("in_channels")
     print(in_channels)
@@ -22,7 +22,7 @@ def tucker_decompose_conv_layer(layer, rank):
     #core=core_all[0]
     core, [*factors] = core_all
     
-    pointwise_s_to_r = nn.Conv2d(in_channels=in_channels, out_channels=core.shape[0],
+    pointwise_s_to_r = nn.Conv2d(out_channels=in_channels, in_channels=core.shape[0],
                                  kernel_size=1, stride=1, padding=0, bias=False)
     pointwise_s_to_r.weight.data = factors[0].unsqueeze(2).unsqueeze(3)
     print( "pointwise_s_to_r.weight.data")
@@ -34,7 +34,7 @@ def tucker_decompose_conv_layer(layer, rank):
     depthwise_r_to_r.weight.data = core
     print( "depthwise_r_to_r.weight.data")
     print( depthwise_r_to_r.weight.data.shape)
-    pointwise_r_to_t = nn.Conv2d(in_channels=core.shape[0], out_channels=out_channels,
+    pointwise_r_to_t = nn.Conv2d(out_channels=core.shape[0], in_channels=out_channels,
                                  kernel_size=1, stride=1, padding=0, bias=False)
     pointwise_r_to_t.weight.data = factors[1].unsqueeze(2).unsqueeze(3)
     print( "pointwise_r_to_t.weight.data")
