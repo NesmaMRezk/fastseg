@@ -107,7 +107,7 @@ class LRASPP(BaseSegmentation):
         # Reduced atrous spatial pyramid pooling
         if self.use_aspp:
             self.aspp_conv1 = nn.Sequential(
-                nn.Conv2d(high_level_ch, num_filters, 1, bias=False),
+                tltorch.FactorizedConv.from_conv(nn.Conv2d(high_level_ch, num_filters, 1, bias=False), rank=0.5, decompose_weights=True, factorization='tucker'),
                 nn.BatchNorm2d(num_filters),
                 nn.ReLU(inplace=True),
             )
