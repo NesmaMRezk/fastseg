@@ -112,33 +112,33 @@ class LRASPP(BaseSegmentation):
                 nn.ReLU(inplace=True),
             )
             self.aspp_conv2 = nn.Sequential(
-                nn.Conv2d(high_level_ch, num_filters, 1, bias=False),
+                tltorch.FactorizedConv.from_conv(nn.Conv2d(high_level_ch, num_filters, 1, bias=False),rank=0.5, decompose_weights=True, factorization='tucker'),
                 tltorch.FactorizedConv.from_conv(nn.Conv2d(num_filters, num_filters, 3, dilation=12, padding=12), rank=0.5, decompose_weights=True, factorization='tucker'),
                 nn.BatchNorm2d(num_filters),
                 nn.ReLU(inplace=True),
             )
             self.aspp_conv3 = nn.Sequential(
-                nn.Conv2d(high_level_ch, num_filters, 1, bias=False),
-                nn.Conv2d(num_filters, num_filters, 3, dilation=36, padding=36),
+                tltorch.FactorizedConv.from_conv(nn.Conv2d(high_level_ch, num_filters, 1, bias=False), rank=0.5, decompose_weights=True, factorization='tucker'),
+                tltorch.FactorizedConv.from_conv(nn.Conv2d(num_filters, num_filters, 3, dilation=36, padding=36), rank=0.5, decompose_weights=True, factorization='tucker'),
                 nn.BatchNorm2d(num_filters),
                 nn.ReLU(inplace=True),
             )
             self.aspp_pool = nn.Sequential(
                 nn.AdaptiveAvgPool2d(1),
-                nn.Conv2d(high_level_ch, num_filters, 1, bias=False),
+                tltorch.FactorizedConv.from_conv(nn.Conv2d(high_level_ch, num_filters, 1, bias=False), rank=0.5, decompose_weights=True, factorization='tucker'),
                 nn.BatchNorm2d(num_filters),
                 nn.ReLU(inplace=True),
             )
             aspp_out_ch = num_filters * 4
         else:
             self.aspp_conv1 = nn.Sequential(
-                nn.Conv2d(high_level_ch, num_filters, 1, bias=False),
+                tltorch.FactorizedConv.from_conv(nn.Conv2d(high_level_ch, num_filters, 1, bias=False), rank=0.5, decompose_weights=True, factorization='tucker'),
                 nn.BatchNorm2d(num_filters),
                 nn.ReLU(inplace=True),
             )
             self.aspp_conv2 = nn.Sequential(
                 nn.AvgPool2d(kernel_size=(49, 49), stride=(16, 20)),
-                nn.Conv2d(high_level_ch, num_filters, 1, bias=False),
+                tltorch.FactorizedConv.from_conv(nn.Conv2d(high_level_ch, num_filters, 1, bias=False), rank=0.5, decompose_weights=True, factorization='tucker'),
                 nn.Sigmoid(),
             )
             aspp_out_ch = num_filters
@@ -148,9 +148,9 @@ class LRASPP(BaseSegmentation):
 
         print("helllo  2")
         # Apply Tucker decomposition to the segmentation head
-        self.conv_up1 = nn.Conv2d(aspp_out_ch, num_filters, kernel_size=1)
-        self.conv_up2 = ConvBnRelu(num_filters + 64, num_filters, kernel_size=1)
-        self.conv_up3 = ConvBnRelu(num_filters + 32, num_filters, kernel_size=1)
+        self.conv_up1 = tltorch.FactorizedConv.from_conv(nn.Conv2d(aspp_out_ch, num_filters, kernel_size=1), rank=0.5, decompose_weights=True, factorization='tucker')
+        self.conv_up2 = tltorch.FactorizedConv.from_conv(ConvBnRelu(num_filters + 64, num_filters, kernel_size=1), rank=0.5, decompose_weights=True, factorization='tucker')
+        self.conv_up3 = tltorch.FactorizedConv.from_conv(ConvBnRelu(num_filters + 32, num_filters, kernel_size=1), rank=0.5, decompose_weights=True, factorization='tucker')
         self.last = nn.Conv2d(num_filters, num_classes, kernel_size=1)
         
     def forward(self, x):
