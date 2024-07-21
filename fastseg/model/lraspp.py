@@ -396,7 +396,8 @@ class LRASPP(BaseSegmentation):
         self.convs4 = nn.Conv2d(s4_ch, 64, kernel_size=1, bias=False)
         self.conv_up1 = nn.Conv2d(aspp_out_ch, num_filters, kernel_size=1)
         self.conv_up2 = ConvBnRelu(num_filters + 64, num_filters, kernel_size=1)
-        self.conv_up3 = ConvBnRelu(num_filters + 32, num_filters, kernel_size=1)
+     #   self.conv_up3 = ConvBnRelu(num_filters + 32, num_filters, kernel_size=1)
+        self.conv_up3 = tltorch.FactorizedConv.from_conv(ConvBnRelu(num_filters + 32, num_filters, kernel_size=1).conv, rank=0.25, decompose_weights=True, factorization='tucker')
         self.last = nn.Conv2d(num_filters, num_classes, kernel_size=1)
 
     def forward(self, x):
